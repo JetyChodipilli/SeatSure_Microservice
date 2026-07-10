@@ -56,6 +56,16 @@
                 <groupId>org.postgresql</groupId>
                 <artifactId>postgresql</artifactId>
             </dependency>
+        <!-- flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- Flyway Support to PostgreSQL -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
 
             <!-- Config Client -->
             <dependency>
