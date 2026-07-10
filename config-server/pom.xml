@@ -9,10 +9,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>com.seatsure</groupId>
-    <artifactId>discovery-server</artifactId>
+    <artifactId>config-server</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>discovery-server</name>
-    <description>Discovery-server</description>
+    <name>config-server</name>
+    <description>config-server</description>
     <url/>
     <licenses>
         <license/>
@@ -27,23 +27,23 @@
         <url/>
     </scm>
 
+
     <dependencies>
+
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
-
 
     <build>
         <plugins>
