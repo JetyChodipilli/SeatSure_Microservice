@@ -20,6 +20,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.security.authentication.BadCredentialsException;
+import com.seatsure.authservice.exception.InvalidCredentialsException;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -90,11 +92,20 @@ public class AuthService {
      */
     public JwtResponse login(LoginRequest request) {
 
-        Authentication authentication =
-                authenticationManager.authenticate(
-                        new UsernamePasswordAuthenticationToken(
-                                request.getEmail(),
-                                request.getPassword()));
+        Authentication authentication;
+
+        try {
+
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()));
+
+        } catch (BadCredentialsException ex) {
+
+            throw new InvalidCredentialsException(
+                    "Invalid email or password.");
+        }
 
         UserDetails userDetails =
                 (UserDetails) authentication.getPrincipal();

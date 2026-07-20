@@ -4,6 +4,9 @@ import com.seatsure.authservice.dto.JwtResponse;
 import com.seatsure.authservice.dto.RefreshTokenRequest;
 import com.seatsure.authservice.entity.RefreshToken;
 import com.seatsure.authservice.entity.User;
+import com.seatsure.authservice.exception.RefreshTokenExpiredException;
+import com.seatsure.authservice.exception.RefreshTokenNotFoundException;
+import com.seatsure.authservice.exception.RefreshTokenRevokedException;
 import com.seatsure.authservice.repository.RefreshTokenRepository;
 import com.seatsure.authservice.security.JwtService;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,7 +73,8 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
 
         if (token.isRevoked()) {
-            throw new RuntimeException("Refresh token has been revoked.");
+            throw new RefreshTokenRevokedException(
+                    "Refresh token has been revoked.");
         }
 
         if (token.getExpiryDate().isBefore(Instant.now())) {
@@ -78,7 +82,7 @@ public class RefreshTokenService {
             token.setRevoked(true);
             refreshTokenRepository.save(token);
 
-            throw new RuntimeException(
+            throw new RefreshTokenExpiredException(
                     "Refresh token has expired. Please login again.");
         }
 
@@ -92,7 +96,7 @@ public class RefreshTokenService {
 
         RefreshToken refreshToken = findByToken(refreshTokenValue)
                 .orElseThrow(() ->
-                        new RuntimeException("Refresh token not found."));
+                        new RefreshTokenNotFoundException("Refresh token not found."));
 
         refreshToken.setRevoked(true);
 
@@ -108,7 +112,7 @@ public class RefreshTokenService {
         RefreshToken refreshToken =
                 findByToken(request.getRefreshToken())
                         .orElseThrow(() ->
-                                new RuntimeException(
+                                new RefreshTokenNotFoundException(
                                         "Refresh token not found."));
 
         verifyExpiration(refreshToken);
