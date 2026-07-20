@@ -23,8 +23,10 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint authenticationEntryPoint;
     private final JwtAccessDeniedHandler accessDeniedHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          JwtAuthenticationEntryPoint authenticationEntryPoint, JwtAccessDeniedHandler jwtAccessDeniedHandler, JwtAccessDeniedHandler accessDeniedHandler) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            JwtAuthenticationEntryPoint authenticationEntryPoint,
+            JwtAccessDeniedHandler accessDeniedHandler) {
 
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
@@ -49,7 +51,6 @@ public class SecurityConfig {
             throws Exception {
 
         http
-
                 .csrf(csrf -> csrf.disable())
 
                 .exceptionHandling(exception -> exception
@@ -58,7 +59,8 @@ public class SecurityConfig {
                 )
 
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
                 .authorizeHttpRequests(auth -> auth
 
@@ -66,6 +68,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout",
                                 "/actuator/**"
                         )
 
@@ -74,7 +77,6 @@ public class SecurityConfig {
                         .anyRequest()
 
                         .authenticated()
-
                 )
 
                 .addFilterBefore(

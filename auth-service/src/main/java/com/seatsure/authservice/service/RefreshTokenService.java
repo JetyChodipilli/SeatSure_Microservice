@@ -1,25 +1,24 @@
 package com.seatsure.authservice.service;
 
-import com.seatsure.authservice.repository.RefreshTokenRepository;
-import com.seatsure.authservice.repository.UserRepository;
-import com.seatsure.authservice.security.JwtService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import com.seatsure.authservice.dto.JwtResponse;
+import com.seatsure.authservice.dto.RefreshTokenRequest;
 import com.seatsure.authservice.entity.RefreshToken;
 import com.seatsure.authservice.entity.User;
+import com.seatsure.authservice.repository.RefreshTokenRepository;
+import com.seatsure.authservice.security.JwtService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
-import com.seatsure.authservice.dto.JwtResponse;
-import com.seatsure.authservice.dto.RefreshTokenRequest;
-import org.springframework.security.core.userdetails.UserDetails;
+import java.util.stream.Collectors;
 
 @Service
 public class RefreshTokenService {
 
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
     private final JwtService jwtService;
 
     @Value("${jwt.refresh-expiration}")
@@ -27,64 +26,98 @@ public class RefreshTokenService {
 
     public RefreshTokenService(
             RefreshTokenRepository refreshTokenRepository,
-            UserRepository userRepository,
             JwtService jwtService) {
 
         this.refreshTokenRepository = refreshTokenRepository;
-        this.userRepository = userRepository;
         this.jwtService = jwtService;
     }
 
+    /**
+     * Create Refresh Token
+     */
     public RefreshToken createRefreshToken(User user) {
 
         RefreshToken refreshToken = new RefreshToken();
 
         refreshToken.setUser(user);
-
         refreshToken.setToken(UUID.randomUUID().toString());
-
         refreshToken.setExpiryDate(
                 Instant.now().plusMillis(refreshTokenDuration));
-
         refreshToken.setRevoked(false);
 
         return refreshTokenRepository.save(refreshToken);
     }
 
+    /**
+     * Find Refresh Token
+     */
     public Optional<RefreshToken> findByToken(String token) {
 
         return refreshTokenRepository.findByToken(token);
     }
 
+    /**
+     * Save Refresh Token
+     */
+    public RefreshToken save(RefreshToken refreshToken) {
+
+        return refreshTokenRepository.save(refreshToken);
+    }
+
+    /**
+     * Verify Refresh Token
+     */
     public RefreshToken verifyExpiration(RefreshToken token) {
+
+        if (token.isRevoked()) {
+            throw new RuntimeException("Refresh token has been revoked.");
+        }
 
         if (token.getExpiryDate().isBefore(Instant.now())) {
 
-            refreshTokenRepository.delete(token);
+            token.setRevoked(true);
+            refreshTokenRepository.save(token);
 
-            throw new RuntimeException("Refresh token has expired. Please login again.");
+            throw new RuntimeException(
+                    "Refresh token has expired. Please login again.");
         }
 
         return token;
     }
 
-    public void deleteByUser(User user) {
+    /**
+     * Logout
+     */
+    public void logout(String refreshTokenValue) {
 
-        refreshTokenRepository.deleteByUser(user);
+        RefreshToken refreshToken = findByToken(refreshTokenValue)
+                .orElseThrow(() ->
+                        new RuntimeException("Refresh token not found."));
+
+        refreshToken.setRevoked(true);
+
+        refreshTokenRepository.save(refreshToken);
     }
 
-    public JwtResponse refreshAccessToken(RefreshTokenRequest request) {
+    /**
+     * Generate New Access Token
+     */
+    public JwtResponse refreshAccessToken(
+            RefreshTokenRequest request) {
 
-        RefreshToken refreshToken = findByToken(request.getRefreshToken())
-                .orElseThrow(() ->
-                        new RuntimeException("Refresh token not found"));
+        RefreshToken refreshToken =
+                findByToken(request.getRefreshToken())
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Refresh token not found."));
 
         verifyExpiration(refreshToken);
 
-        com.seatsure.authservice.entity.User user = refreshToken.getUser();
+        User user = refreshToken.getUser();
 
         UserDetails userDetails =
-                org.springframework.security.core.userdetails.User.builder()
+                org.springframework.security.core.userdetails.User
+                        .builder()
                         .username(user.getEmail())
                         .password(user.getPassword())
                         .authorities(
@@ -95,7 +128,8 @@ public class RefreshTokenService {
                         )
                         .build();
 
-        String accessToken = jwtService.generateToken(userDetails);
+        String accessToken =
+                jwtService.generateToken(userDetails);
 
         JwtResponse response = new JwtResponse();
 
@@ -105,11 +139,12 @@ public class RefreshTokenService {
         response.setFirstName(user.getFirstName());
         response.setLastName(user.getLastName());
         response.setEmail(user.getEmail());
+
         response.setRoles(
                 user.getRoles()
                         .stream()
                         .map(role -> role.getName())
-                        .collect(java.util.stream.Collectors.toSet())
+                        .collect(Collectors.toSet())
         );
 
         return response;

@@ -2,6 +2,8 @@ package com.seatsure.authservice.controller;
 
 import com.seatsure.authservice.dto.JwtResponse;
 import com.seatsure.authservice.dto.LoginRequest;
+import com.seatsure.authservice.dto.LogoutRequest;
+import com.seatsure.authservice.dto.RefreshTokenRequest;
 import com.seatsure.authservice.dto.RegisterRequest;
 import com.seatsure.authservice.dto.UserProfileResponse;
 import com.seatsure.authservice.service.AuthService;
@@ -11,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import com.seatsure.authservice.dto.RefreshTokenRequest;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -19,16 +20,27 @@ public class AuthController {
 
     private final AuthService authService;
 
-    public AuthController(AuthService authService){
+    public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
+    /**
+     * Register a new user
+     */
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request){
+    public ResponseEntity<String> register(
+            @Valid @RequestBody RegisterRequest request) {
+
         String response = authService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
                 .body(response);
     }
+
+    /**
+     * Login and generate Access Token + Refresh Token
+     */
     @PostMapping("/login")
     public ResponseEntity<JwtResponse> login(
             @Valid @RequestBody LoginRequest request) {
@@ -37,14 +49,34 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Generate a new Access Token using Refresh Token
+     */
     @PostMapping("/refresh")
     public ResponseEntity<JwtResponse> refreshToken(
-            @RequestBody RefreshTokenRequest request) {
+            @Valid @RequestBody RefreshTokenRequest request) {
 
         JwtResponse response = authService.refreshToken(request);
 
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Logout user by revoking Refresh Token
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(
+            @Valid @RequestBody LogoutRequest request) {
+
+        String response = authService.logout(request);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get currently logged-in user profile
+     */
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> currentUser(
             Authentication authentication) {
@@ -54,17 +86,24 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
-    @GetMapping("/admin")
-    @PreAuthorize("hasRole('ADMIN')")
-    public String admin() {
-        return "Welcome Admin";
-    }
 
+    /**
+     * User endpoint
+     */
     @GetMapping("/user")
     @PreAuthorize("hasRole('USER')")
-    public String user() {
-        return "Welcome User";
+    public ResponseEntity<String> user() {
+
+        return ResponseEntity.ok("Welcome User");
     }
 
+    /**
+     * Admin endpoint
+     */
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> admin() {
 
+        return ResponseEntity.ok("Welcome Admin");
+    }
 }

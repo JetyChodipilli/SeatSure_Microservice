@@ -1,6 +1,11 @@
 package com.seatsure.authservice.service;
 
-import com.seatsure.authservice.dto.*;
+import com.seatsure.authservice.dto.JwtResponse;
+import com.seatsure.authservice.dto.LoginRequest;
+import com.seatsure.authservice.dto.LogoutRequest;
+import com.seatsure.authservice.dto.RefreshTokenRequest;
+import com.seatsure.authservice.dto.RegisterRequest;
+import com.seatsure.authservice.dto.UserProfileResponse;
 import com.seatsure.authservice.entity.RefreshToken;
 import com.seatsure.authservice.entity.Role;
 import com.seatsure.authservice.entity.User;
@@ -9,13 +14,12 @@ import com.seatsure.authservice.exception.ResourceNotFoundException;
 import com.seatsure.authservice.repository.RoleRepository;
 import com.seatsure.authservice.repository.UserRepository;
 import com.seatsure.authservice.security.JwtService;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -26,17 +30,18 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
 
-    public AuthService(UserRepository userRepository,
-                       RoleRepository roleRepository,
-                       PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager,
-                       JwtService jwtService,
-                        RefreshTokenService refreshTokenService) {
+    public AuthService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            AuthenticationManager authenticationManager,
+            JwtService jwtService,
+            RefreshTokenService refreshTokenService) {
 
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -44,51 +49,52 @@ public class AuthService {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
-
     }
 
-    public String register(RegisterRequest request){
-        //check Duplicate email
-        if(userRepository.existsByEmail(request.getEmail()))
-            throw new EmailAlreadyExistsException("Email already registered" + request.getEmail());
+    /**
+     * Register User
+     */
+    public String register(RegisterRequest request) {
 
-            // 2. Get ROLE_USER
-        Role role = roleRepository.findByName("ROLE_USER")
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException("ROLE_USER not found"));
-
-            // 3. Create User entity
-            User user = new User();
-
-            user.setFirstName(request.getFirstName());
-            user.setLastName(request.getLastName());
-            user.setEmail(request.getEmail());
-
-            // Encrypt password
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-            user.setPhone(request.getPhone());
-
-            // 4. Assign role
-            Set<Role> roles = new HashSet<>();
-            roles.add(role);
-
-            user.setRoles(roles);
-
-            // 5. Save user
-            userRepository.save(user);
-
-            return "User registered successfully.";
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException(
+                    "Email already registered : " + request.getEmail());
         }
+
+        Role role = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("ROLE_USER not found"));
+
+        User user = new User();
+
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+
+        user.setPassword(
+                passwordEncoder.encode(request.getPassword()));
+
+        Set<Role> roles = new HashSet<>();
+        roles.add(role);
+
+        user.setRoles(roles);
+
+        userRepository.save(user);
+
+        return "User registered successfully.";
+    }
+
+    /**
+     * Login
+     */
     public JwtResponse login(LoginRequest request) {
 
         Authentication authentication =
                 authenticationManager.authenticate(
                         new UsernamePasswordAuthenticationToken(
                                 request.getEmail(),
-                                request.getPassword()
-                        )
-                );
+                                request.getPassword()));
 
         UserDetails userDetails =
                 (UserDetails) authentication.getPrincipal();
@@ -97,7 +103,8 @@ public class AuthService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("User not found"));
 
-        String token = jwtService.generateToken(userDetails);
+        String accessToken =
+                jwtService.generateToken(userDetails);
 
         RefreshToken refreshToken =
                 refreshTokenService.createRefreshToken(user);
@@ -108,7 +115,7 @@ public class AuthService {
                 .collect(Collectors.toSet());
 
         return new JwtResponse(
-                token,
+                accessToken,
                 refreshToken.getToken(),
                 user.getId(),
                 user.getFirstName(),
@@ -117,6 +124,38 @@ public class AuthService {
                 roles
         );
     }
+
+    /**
+     * Refresh Access Token
+     */
+    public JwtResponse refreshToken(
+            RefreshTokenRequest request) {
+
+        return refreshTokenService.refreshAccessToken(request);
+    }
+
+    /**
+     * Logout User
+     */
+    public String logout(LogoutRequest request) {
+
+        RefreshToken refreshToken =
+                refreshTokenService.findByToken(
+                                request.getRefreshToken())
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Refresh token not found"));
+
+        refreshToken.setRevoked(true);
+
+        refreshTokenService.save(refreshToken);
+
+        return "Logout successful.";
+    }
+
+    /**
+     * Current Logged-in User
+     */
     public UserProfileResponse getCurrentUser(String email) {
 
         User user = userRepository.findByEmail(email)
@@ -136,8 +175,4 @@ public class AuthService {
                 roles
         );
     }
-    public JwtResponse refreshToken(RefreshTokenRequest request) {
-        return refreshTokenService.refreshAccessToken(request);
-    }
-
 }
